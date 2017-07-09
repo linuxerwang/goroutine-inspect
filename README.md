@@ -19,14 +19,17 @@ and statements.
 
 ## Commands
 
-At present, only 6 commands are supported.
+At present, the following commands are supported.
 
 | command | function                          |
 | ------- | --------------------------------- |
 | cd      | Change current working directory. |
 | clear   | Clear the workspace.              |
-| help    | Show this help.                   |
+| exit    | Exit the interactive shell.       |
+| help    | Show help.                        |
 | ls      | Show files in current directory.  |
+| pwd     | Show present working directory.   |
+| quit    | Quit the interactive shell.       |
 | whos    | Show all varaibles in workspace.  |
 
 ## Statements
@@ -184,6 +187,80 @@ created by net.(*netFD).connect
         go1.8.1.linux-amd64/src/net/fd_unix.go:144 +0x239
 ```
 
+### Diff Two Goroutine Dumps
+
+```bash
+>> l, c, r = x.diff(y)
+>> l
+# of goroutines: 574
+
+        IO wait: 147
+   chan receive: 1
+       runnable: 3
+         select: 421
+        syscall: 2
+
+>> c
+# of goroutines: 651
+
+        IO wait: 157
+       runnable: 4
+         select: 489
+     semacquire: 1
+
+>> r
+# of goroutines: 992
+
+        IO wait: 229
+   chan receive: 49
+      chan send: 4
+       runnable: 31
+        running: 1
+         select: 594
+     semacquire: 84
+```
+
+It returns three values: the dump var containing goroutines only appear in
+x (the left side), the dump var containing goroutines appear in both x and y,
+the dump var containing goroutines only appear in y (the right side).
+
+### Dedup goroutines
+
+Normally goroutine dump files contain thousands of goroutine entries, but
+there are many duplicated traces. Function dedup() helps to identify these
+duplicated traces by comparing the trace lines, and only keep one copy of
+them. It greatly reduces the information explosion and make developers much
+easier to focus on their problems.
+
+```bash
+>> a
+# of goroutines: 2217
+
+        IO wait: 533
+   chan receive: 50
+      chan send: 4
+       runnable: 38
+        running: 1
+         select: 1504
+     semacquire: 85
+        syscall: 2
+
+>> a.dedup()
+Dedupped 2217, kept 46
+>>
+>> a
+# of goroutines: 46
+
+        IO wait: 6
+   chan receive: 2
+      chan send: 2
+       runnable: 18
+        running: 1
+         select: 12
+     semacquire: 3
+        syscall: 2
+```
+
 ## Properties of a Goroutine Dump Item
 
 Each dump item has 5 properties which can be used in conditionals:
@@ -195,3 +272,19 @@ Each dump item has 5 properties which can be used in conditionals:
 | lines    | integer | The number of lines of the goroutine's stack trace. |
 | state    | string  | The running state of the goroutine.                 |
 | trace    | string  | The concatenated text of the goroutine stack trace. |
+
+## Functions in Conditionals
+
+The following functions can be used in defining conditionals:
+
+| function | args           | return value | meaning                                               |
+| -------- | -------------- | ------------ | ----------------------------------------------------- |
+| contains | string, string | bool         | Returns true if the first arg contains the second arg |
+| lower    | string         | string       | Returns the lowercased string of the input.           |
+| upper    | string         | string       | Returns the uppercased string of the input.           |
+
+Example:
+
+```bash
+>> original.search("contains(lower(trace), 'handlestream')")
+```
