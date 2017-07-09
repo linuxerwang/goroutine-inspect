@@ -22,9 +22,11 @@ var (
 		"?":     "Show this help",
 		"cd":    "Change current working directory",
 		"clear": "Clear the workspace",
+		"exit":  "Exit the interactive shell",
 		"help":  "Show this help",
 		"ls":    "Show files in current directory",
 		"pwd":   "Show current working directory",
+		"quit":  "Quit the interactive shell",
 		"whos":  "Show all varaibles in workspace",
 	}
 	cmds []string
@@ -59,6 +61,8 @@ func main() {
 			case "clear":
 				workspace = map[string]*GoroutineDump{}
 				fmt.Println("Workspace cleared.")
+			case "exit", "quit":
+				return
 			case "ls":
 				wd, err := os.Getwd()
 				if err != nil {
