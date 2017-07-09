@@ -11,6 +11,7 @@ import (
 
 	"sort"
 
+	sgr "github.com/foize/go.sgr"
 	"github.com/peterh/liner"
 )
 
@@ -136,8 +137,16 @@ func printDir(wd string) {
 		return
 	}
 
+	sort.Slice(fis, func(i, j int) bool {
+		return fis[i].Name() < fis[j].Name()
+	})
+
 	for _, fi := range fis {
-		fmt.Println(fi.Name())
+		if fi.IsDir() {
+			sgr.Printf("[fg-blue]%s[reset]\n", fi.Name())
+		} else {
+			fmt.Println(fi.Name())
+		}
 	}
 }
 
