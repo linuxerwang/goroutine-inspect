@@ -3,11 +3,18 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"strconv"
 	"strings"
 
 	"errors"
 
+	"hash"
+
+	"crypto/md5"
+
 	"github.com/Knetic/govaluate"
+	"github.com/foize/go.sgr"
 )
 
 type MetaType int
@@ -19,41 +26,76 @@ var (
 
 // Goroutine contains a goroutine info.
 type Goroutine struct {
-	id    int
-	trace string
-	lines int
-	metas map[MetaType]string
+	id     int
+	header string
+	trace  string
+	lines  int
+	metas  map[MetaType]string
 
-	freezed bool
-	buf     *bytes.Buffer
+	lineMd5    []string
+	fullMd5    string
+	fullHasher hash.Hash
+
+	frozen bool
+	buf    *bytes.Buffer
 }
 
 // AddLine appends a line to the goroutine info.
 func (g *Goroutine) AddLine(l string) {
-	if !g.freezed {
+	if !g.frozen {
 		g.lines++
 		g.buf.WriteString(l)
 		g.buf.WriteString("\n")
+
+		h := md5.New()
+		io.WriteString(h, l)
+		g.lineMd5 = append(g.lineMd5, string(h.Sum(nil)))
+
+		io.WriteString(g.fullHasher, l)
 	}
 }
 
 // Freeze freezes the goroutine info.
 func (g *Goroutine) Freeze() {
-	if !g.freezed {
-		g.freezed = true
+	if !g.frozen {
+		g.frozen = true
 		g.trace = g.buf.String()
 		g.buf = nil
+
+		g.fullMd5 = string(g.fullHasher.Sum(nil))
 	}
 }
 
+// Print outputs the goroutine details.
+func (g Goroutine) Print() {
+	sgr.Printf("[fg-blue]%s[reset]\n", g.header)
+	sgr.Println(g.trace)
+}
+
 // NewGoroutine creates and returns a new Goroutine.
-func NewGoroutine(id int, metas map[MetaType]string) *Goroutine {
-	return &Goroutine{
-		id:    id,
-		lines: 1,
-		buf:   &bytes.Buffer{},
-		metas: metas,
+func NewGoroutine(metaline string) (*Goroutine, error) {
+	idx := strings.Index(metaline, "[")
+	parts := strings.Split(metaline[idx+1:len(metaline)-2], ",")
+	metas := map[MetaType]string{
+		MetaState: strings.TrimSpace(parts[0]),
 	}
+	if len(parts) > 1 {
+		metas[MetaDuration] = strings.TrimSpace(parts[1])
+	}
+	idstr := strings.TrimSpace(metaline[9:idx])
+	id, err := strconv.Atoi(idstr)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Goroutine{
+		id:         id,
+		lines:      1,
+		header:     metaline,
+		buf:        &bytes.Buffer{},
+		metas:      metas,
+		fullHasher: md5.New(),
+	}, nil
 }
 
 // GoroutineDump defines a goroutine dump.
@@ -95,7 +137,7 @@ func (gd GoroutineDump) Copy(cond string) *GoroutineDump {
 // Delete deletes by the condition.
 func (gd *GoroutineDump) Delete(cond string) error {
 	goroutines, err := gd.withCondition(cond, func(i int, g *Goroutine, passed bool) *Goroutine {
-		if passed {
+		if !passed {
 			return g
 		}
 		return nil
@@ -107,10 +149,30 @@ func (gd *GoroutineDump) Delete(cond string) error {
 	return nil
 }
 
+// Diff shows the difference between two dumps.
+func (gd *GoroutineDump) Diff(another *GoroutineDump) (*GoroutineDump, *GoroutineDump, *GoroutineDump) {
+	lonly := map[int]*Goroutine{}
+	ronly := map[int]*Goroutine{}
+	common := map[int]*Goroutine{}
+
+	for _, v := range gd.goroutines {
+		lonly[v.id] = v
+	}
+	for _, v := range another.goroutines {
+		if _, ok := lonly[v.id]; ok {
+			delete(lonly, v.id)
+			common[v.id] = v
+		} else {
+			ronly[v.id] = v
+		}
+	}
+	return NewGoroutineDumpFromMap(lonly), NewGoroutineDumpFromMap(common), NewGoroutineDumpFromMap(ronly)
+}
+
 // Keep keeps by the condition.
 func (gd *GoroutineDump) Keep(cond string) error {
 	goroutines, err := gd.withCondition(cond, func(i int, g *Goroutine, passed bool) *Goroutine {
-		if !passed {
+		if passed {
 			return g
 		}
 		return nil
@@ -124,9 +186,15 @@ func (gd *GoroutineDump) Keep(cond string) error {
 
 // Search displays the goroutines with the offset and limit.
 func (gd GoroutineDump) Search(cond string, offset, limit int) {
+	sgr.Printf("[fg-green]Search with offset %d and limit %d.[reset]\n\n", offset, limit)
+
+	count := 0
 	_, err := gd.withCondition(cond, func(i int, g *Goroutine, passed bool) *Goroutine {
 		if passed {
-			fmt.Println(g.trace)
+			if count >= offset && count < offset+limit {
+				g.Print()
+			}
+			count++
 		}
 		return nil
 	})
@@ -138,7 +206,7 @@ func (gd GoroutineDump) Search(cond string, offset, limit int) {
 // Show displays the goroutines with the offset and limit.
 func (gd GoroutineDump) Show(offset, limit int) {
 	for i := offset; i < offset+limit && i < len(gd.goroutines); i++ {
-		fmt.Println(gd.goroutines[offset+i].trace)
+		gd.goroutines[offset+i].Print()
 	}
 }
 
@@ -170,6 +238,17 @@ func NewGoroutineDump() *GoroutineDump {
 	return &GoroutineDump{
 		goroutines: []*Goroutine{},
 	}
+}
+
+// NewGoroutineDumpFromMap creates and returns a new GoroutineDump from a map.
+func NewGoroutineDumpFromMap(gs map[int]*Goroutine) *GoroutineDump {
+	gd := &GoroutineDump{
+		goroutines: []*Goroutine{},
+	}
+	for _, v := range gs {
+		gd.goroutines = append(gd.goroutines, v)
+	}
+	return gd
 }
 
 func (gd *GoroutineDump) withCondition(cond string, callback func(int, *Goroutine, bool) *Goroutine) ([]*Goroutine, error) {

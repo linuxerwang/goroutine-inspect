@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	assignPattern = regexp.MustCompile(`^\s*[_a-zA-Z][_a-zA-Z0-9]*\s*=\s*.*$`)
+	assignPattern = regexp.MustCompile(`^\s*[_a-zA-Z][_a-zA-Z0-9]*(\s*,\s*[_a-zA-Z][_a-zA-Z0-9]*)*\s*=\s*.*$`)
 	cdPattern     = regexp.MustCompile(`^\s*cd\s*.*$`)
 
 	commands = map[string]string{

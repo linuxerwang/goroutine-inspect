@@ -23,22 +23,22 @@ func expr(e string) error {
 			if v, ok := workspace[k]; ok {
 				switch fun.Sel.Name {
 				case "delete":
-					if len(ex.Args) > 1 {
-						return errors.New("keep expects exactly one argument")
-					}
-					return v.Keep(ex.Args[0].(*ast.BasicLit).Value)
-				case "keep":
-					if len(ex.Args) > 1 {
-						return errors.New("delete expects exactly one argument")
+					if len(ex.Args) != 1 {
+						return errors.New("keep() expects exactly one argument")
 					}
 					return v.Delete(ex.Args[0].(*ast.BasicLit).Value)
+				case "keep":
+					if len(ex.Args) != 1 {
+						return errors.New("delete() expects exactly one argument")
+					}
+					return v.Keep(ex.Args[0].(*ast.BasicLit).Value)
 				case "search":
 					var err error
 					offset := 0
 					limit := 10
 					switch len(ex.Args) {
 					case 0:
-						return errors.New("search expects at least one argument")
+						return errors.New("search() expects at least one argument")
 					case 1:
 					case 2:
 						offset, err = strconv.Atoi(ex.Args[1].(*ast.BasicLit).Value)
@@ -55,7 +55,7 @@ func expr(e string) error {
 							return fmt.Errorf("invalid argument 'limit' %s", ex.Args[2])
 						}
 					default:
-						return errors.New("show expects at most three arguments")
+						return errors.New("search() expects at most three arguments")
 					}
 					v.Search(ex.Args[0].(*ast.BasicLit).Value, offset, limit)
 					return nil
@@ -80,7 +80,7 @@ func expr(e string) error {
 							return fmt.Errorf("invalid argument 'limit' %s", ex.Args[1])
 						}
 					default:
-						return errors.New("show expects at least one and at most two arguments")
+						return errors.New("show() expects at least one and at most two arguments")
 					}
 					v.Show(offset, limit)
 					return nil
