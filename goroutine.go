@@ -57,7 +57,7 @@ type Goroutine struct {
 	lineMd5    []string
 	fullMd5    string
 	fullHasher hash.Hash
-	duplicates int
+	duplicates []int
 
 	frozen bool
 	buf    *bytes.Buffer
@@ -102,8 +102,15 @@ func (g *Goroutine) Freeze() {
 // Print outputs the goroutine details.
 func (g Goroutine) Print() {
 	sgr.Printf("[fg-blue]%s[reset]", g.header)
-	if g.duplicates > 0 {
-		sgr.Printf(" [fg-red]%d[reset] times.", g.duplicates)
+	if len(g.duplicates) > 0 {
+		sgr.Printf(" [fg-red]%d[reset] times: [[", len(g.duplicates))
+		for i, id := range g.duplicates {
+			if i > 0 {
+				sgr.Printf(", ")
+			}
+			sgr.Printf("[fg-green]%d[reset]", id)
+		}
+		sgr.Print("]")
 	}
 	sgr.Println()
 	sgr.Println(g.trace)
@@ -132,6 +139,7 @@ func NewGoroutine(metaline string) (*Goroutine, error) {
 		buf:        &bytes.Buffer{},
 		metas:      metas,
 		fullHasher: md5.New(),
+		duplicates: []int{},
 	}, nil
 }
 
@@ -174,22 +182,22 @@ func (gd GoroutineDump) Copy(cond string) *GoroutineDump {
 // Dedup finds goroutines with duplicated stack traces and keeps only one copy
 // of them.
 func (gd *GoroutineDump) Dedup() {
-	m := map[string]int{}
+	m := map[string][]int{}
 	for _, g := range gd.goroutines {
 		if _, ok := m[g.fullMd5]; ok {
-			m[g.fullMd5]++
+			m[g.fullMd5] = append(m[g.fullMd5], g.id)
 		} else {
-			m[g.fullMd5] = 1
+			m[g.fullMd5] = []int{g.id}
 		}
 	}
 
 	kept := make([]*Goroutine, 0, len(gd.goroutines))
 
 outter:
-	for digest, count := range m {
+	for digest, ids := range m {
 		for _, g := range gd.goroutines {
 			if g.fullMd5 == digest {
-				g.duplicates = count
+				g.duplicates = ids
 				kept = append(kept, g)
 				continue outter
 			}
