@@ -57,6 +57,7 @@ type Goroutine struct {
 	lineMd5    []string
 	fullMd5    string
 	fullHasher hash.Hash
+	duplicates int
 
 	frozen bool
 	buf    *bytes.Buffer
@@ -100,7 +101,11 @@ func (g *Goroutine) Freeze() {
 
 // Print outputs the goroutine details.
 func (g Goroutine) Print() {
-	sgr.Printf("[fg-blue]%s[reset]\n", g.header)
+	sgr.Printf("[fg-blue]%s[reset]", g.header)
+	if g.duplicates > 0 {
+		sgr.Printf(" [fg-red]%d[reset] times.", g.duplicates)
+	}
+	sgr.Println()
 	sgr.Println(g.trace)
 }
 
@@ -181,9 +186,10 @@ func (gd *GoroutineDump) Dedup() {
 	kept := make([]*Goroutine, 0, len(gd.goroutines))
 
 outter:
-	for digest := range m {
+	for digest, count := range m {
 		for _, g := range gd.goroutines {
 			if g.fullMd5 == digest {
+				g.duplicates = count
 				kept = append(kept, g)
 				continue outter
 			}
