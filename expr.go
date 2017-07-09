@@ -27,6 +27,12 @@ func expr(e string) error {
 						return errors.New("keep() expects exactly one argument")
 					}
 					return v.Delete(ex.Args[0].(*ast.BasicLit).Value)
+				case "dedup":
+					if len(ex.Args) != 0 {
+						return errors.New("dedup() expects no arguments")
+					}
+					v.Dedup()
+					return nil
 				case "keep":
 					if len(ex.Args) != 1 {
 						return errors.New("delete() expects exactly one argument")

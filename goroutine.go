@@ -69,11 +69,21 @@ func (g *Goroutine) AddLine(l string) {
 		g.buf.WriteString(l)
 		g.buf.WriteString("\n")
 
-		h := md5.New()
-		io.WriteString(h, l)
-		g.lineMd5 = append(g.lineMd5, string(h.Sum(nil)))
+		if strings.HasPrefix(l, "\t") {
+			parts := strings.Split(l, " ")
+			if len(parts) != 2 {
+				fmt.Println("ignored one line for digest")
+				return
+			}
 
-		io.WriteString(g.fullHasher, l)
+			fl := strings.TrimSpace(parts[0])
+
+			h := md5.New()
+			io.WriteString(h, fl)
+			g.lineMd5 = append(g.lineMd5, string(h.Sum(nil)))
+
+			io.WriteString(g.fullHasher, fl)
+		}
 	}
 }
 
@@ -154,6 +164,36 @@ func (gd GoroutineDump) Copy(cond string) *GoroutineDump {
 		dump.goroutines = goroutines
 	}
 	return &dump
+}
+
+// Dedup finds goroutines with duplicated stack traces and keeps only one copy
+// of them.
+func (gd *GoroutineDump) Dedup() {
+	m := map[string]int{}
+	for _, g := range gd.goroutines {
+		if _, ok := m[g.fullMd5]; ok {
+			m[g.fullMd5]++
+		} else {
+			m[g.fullMd5] = 1
+		}
+	}
+
+	kept := make([]*Goroutine, 0, len(gd.goroutines))
+
+outter:
+	for digest := range m {
+		for _, g := range gd.goroutines {
+			if g.fullMd5 == digest {
+				kept = append(kept, g)
+				continue outter
+			}
+		}
+	}
+
+	if len(gd.goroutines) != len(kept) {
+		fmt.Printf("Dedupped %d, kept %d\n", len(gd.goroutines), len(kept))
+		gd.goroutines = kept
+	}
 }
 
 // Delete deletes by the condition.
