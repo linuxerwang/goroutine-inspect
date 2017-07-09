@@ -2,16 +2,14 @@ package main
 
 import (
 	"bytes"
+	"crypto/md5"
+	"errors"
 	"fmt"
+	"hash"
 	"io"
+	"sort"
 	"strconv"
 	"strings"
-
-	"errors"
-
-	"hash"
-
-	"crypto/md5"
 
 	"github.com/Knetic/govaluate"
 	"github.com/foize/go.sgr"
@@ -22,6 +20,30 @@ type MetaType int
 var (
 	MetaState    MetaType = 0
 	MetaDuration MetaType = 1
+
+	functions = map[string]govaluate.ExpressionFunction{
+		"contains": func(args ...interface{}) (interface{}, error) {
+			if len(args) != 2 {
+				return nil, fmt.Errorf("contains() accepts exactly two arguments")
+			}
+			idx := strings.Index(args[0].(string), args[1].(string))
+			return bool(idx > -1), nil
+		},
+		"lower": func(args ...interface{}) (interface{}, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("lower() accepts exactly one arguments")
+			}
+			lowered := strings.ToLower(args[0].(string))
+			return string(lowered), nil
+		},
+		"upper": func(args ...interface{}) (interface{}, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("upper() accepts exactly one arguments")
+			}
+			uppered := strings.ToUpper(args[0].(string))
+			return string(uppered), nil
+		},
+	}
 )
 
 // Goroutine contains a goroutine info.
@@ -226,8 +248,14 @@ func (gd GoroutineDump) Summary() {
 		fmt.Println()
 	}
 	if len(stats) > 0 {
-		for k, v := range stats {
-			fmt.Printf("%15s: %d\n", k, v)
+		states := make([]string, 0, 10)
+		for k := range stats {
+			states = append(states, k)
+		}
+		sort.Sort(sort.StringSlice(states))
+
+		for _, k := range states {
+			fmt.Printf("%15s: %d\n", k, stats[k])
 		}
 		fmt.Println()
 	}
@@ -253,7 +281,7 @@ func NewGoroutineDumpFromMap(gs map[int]*Goroutine) *GoroutineDump {
 
 func (gd *GoroutineDump) withCondition(cond string, callback func(int, *Goroutine, bool) *Goroutine) ([]*Goroutine, error) {
 	cond = strings.Trim(cond, "\"")
-	expression, err := govaluate.NewEvaluableExpression(cond)
+	expression, err := govaluate.NewEvaluableExpressionWithFunctions(cond, functions)
 	if err != nil {
 		return nil, err
 	}
