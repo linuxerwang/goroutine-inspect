@@ -187,6 +187,25 @@ created by net.(*netFD).connect
         go1.8.1.linux-amd64/src/net/fd_unix.go:144 +0x239
 ```
 
+One useful ability is to filter goroutines by running time:
+
+```bash
+>> original.search("duration > 10") # duration larger than 10 minutes
+
+goroutine 72 [select, 25 minutes]: 119 times: [72, 54755, 76757, 299, 201, 286, 283, 296, 204, 302, 207, 305, 338, 356, 359, 362, 365, 372, 375, 368, 378, 328, 331, 387, 381
+, 390, 384, 403, 393, 334, 406, 396, 399, 337, 418, 341, 436, 344, 439, 421, 424, 409, 427, 452, 430, 433, 442, 455, 445, 458, 448, 461, 464, 468, 483, 471, 499, 486, 502, 5
+05, 489, 76462, 76773, 54530, 54572, 55194, 54824, 54481, 42719, 54691, 54859, 55023, 75593, 76750, 55202, 54885, 79006, 54468, 55212, 54473, 54462, 54931, 54864, 55133, 550
+97, 54882, 54901, 55209, 54499, 55114, 54564, 76653, 54416, 54527, 75588, 55034, 54868, 54791, 54813, 54698, 54579, 55111, 54443, 54486, 76467, 54654, 54537, 54456, 55126, 5
+5117, 54622, 55199, 54556, 54477, 54871, 79498, 76601, 76735, 76996]
+google.golang.org/grpc/transport.(*http2Server).keepalive(0xc4202f0420)
+        google.golang.org/grpc/transport/http2_server.go:919 +0x488
+created by google.golang.org/grpc/transport.newHTTP2Server
+        google.golang.org/grpc/transport/http2_server.go:226 +0x97c
+```
+
+Note that the above is after a dedup operation, so it shows the same stack trace
+existing 119 times. See the "Dedup goroutines" section.
+
 ### Diff Two Goroutine Dumps
 
 ```bash
