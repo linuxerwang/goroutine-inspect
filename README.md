@@ -268,7 +268,7 @@ Each dump item has 5 properties which can be used in conditionals:
 | property | type    | meaning                                             |
 | -------- | ------- | --------------------------------------------------- |
 | id       | integer | The goroutine ID.                                   |
-| duration | integer | The waiting duration of a goroutine.                |
+| duration | integer | The waiting duration (in minutes) of a goroutine.   |
 | lines    | integer | The number of lines of the goroutine's stack trace. |
 | state    | string  | The running state of the goroutine.                 |
 | trace    | string  | The concatenated text of the goroutine stack trace. |

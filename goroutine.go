@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,6 +21,8 @@ type MetaType int
 var (
 	MetaState    MetaType = 0
 	MetaDuration MetaType = 1
+
+	durationPattern = regexp.MustCompile(`^\d+ minutes$`)
 
 	functions = map[string]govaluate.ExpressionFunction{
 		"contains": func(args ...interface{}) (interface{}, error) {
@@ -48,11 +51,12 @@ var (
 
 // Goroutine contains a goroutine info.
 type Goroutine struct {
-	id     int
-	header string
-	trace  string
-	lines  int
-	metas  map[MetaType]string
+	id       int
+	header   string
+	trace    string
+	lines    int
+	duration int // In minutes.
+	metas    map[MetaType]string
 
 	lineMd5    []string
 	fullMd5    string
@@ -123,9 +127,18 @@ func NewGoroutine(metaline string) (*Goroutine, error) {
 	metas := map[MetaType]string{
 		MetaState: strings.TrimSpace(parts[0]),
 	}
+
+	duration := 0
 	if len(parts) > 1 {
-		metas[MetaDuration] = strings.TrimSpace(parts[1])
+		value := strings.TrimSpace(parts[1])
+		metas[MetaDuration] = value
+		if durationPattern.MatchString(value) {
+			if d, err := strconv.Atoi(value[:len(value)-8]); err == nil {
+				duration = d
+			}
+		}
 	}
+
 	idstr := strings.TrimSpace(metaline[9:idx])
 	id, err := strconv.Atoi(idstr)
 	if err != nil {
@@ -137,6 +150,7 @@ func NewGoroutine(metaline string) (*Goroutine, error) {
 		lines:      1,
 		header:     metaline,
 		buf:        &bytes.Buffer{},
+		duration:   duration,
 		metas:      metas,
 		fullHasher: md5.New(),
 		duplicates: []int{},
@@ -344,7 +358,7 @@ func (gd *GoroutineDump) withCondition(cond string, callback func(int, *Goroutin
 	for i, g := range gd.goroutines {
 		params := map[string]interface{}{
 			"id":       g.id,
-			"duration": g.metas[MetaDuration],
+			"duration": g.duration,
 			"lines":    g.lines,
 			"state":    g.metas[MetaState],
 			"trace":    g.trace,
