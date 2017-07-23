@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 
+	"os"
+
 	"github.com/Knetic/govaluate"
 	"github.com/foize/go.sgr"
 )
@@ -103,8 +105,40 @@ func (g *Goroutine) Freeze() {
 	}
 }
 
-// Print outputs the goroutine details.
-func (g Goroutine) Print() {
+// Print outputs the goroutine details to w.
+func (g Goroutine) Print(w io.Writer) error {
+	if _, err := fmt.Fprint(w, g.header); err != nil {
+		return err
+	}
+	if len(g.duplicates) > 0 {
+		if _, err := fmt.Fprintf(w, " %d times: [[", len(g.duplicates)); err != nil {
+			return err
+		}
+		for i, id := range g.duplicates {
+			if i > 0 {
+				if _, err := fmt.Fprint(w, ", "); err != nil {
+					return err
+				}
+			}
+			if _, err := fmt.Fprint(w, id); err != nil {
+				return err
+			}
+		}
+		if _, err := fmt.Fprint(w, "]"); err != nil {
+			return err
+		}
+	}
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w, g.trace); err != nil {
+		return err
+	}
+	return nil
+}
+
+// PrintWithColor outputs the goroutine details to stdout with color.
+func (g Goroutine) PrintWithColor() {
 	sgr.Printf("[fg-blue]%s[reset]", g.header)
 	if len(g.duplicates) > 0 {
 		sgr.Printf(" [fg-red]%d[reset] times: [[", len(g.duplicates))
@@ -274,6 +308,22 @@ func (gd *GoroutineDump) Keep(cond string) error {
 	return nil
 }
 
+// Save saves the goroutine dump to the given file.
+func (gd GoroutineDump) Save(fn string) error {
+	f, err := os.Create(fn)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	for _, g := range gd.goroutines {
+		if err := g.Print(f); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Search displays the goroutines with the offset and limit.
 func (gd GoroutineDump) Search(cond string, offset, limit int) {
 	sgr.Printf("[fg-green]Search with offset %d and limit %d.[reset]\n\n", offset, limit)
@@ -282,7 +332,7 @@ func (gd GoroutineDump) Search(cond string, offset, limit int) {
 	_, err := gd.withCondition(cond, func(i int, g *Goroutine, passed bool) *Goroutine {
 		if passed {
 			if count >= offset && count < offset+limit {
-				g.Print()
+				g.PrintWithColor()
 			}
 			count++
 		}
@@ -296,7 +346,7 @@ func (gd GoroutineDump) Search(cond string, offset, limit int) {
 // Show displays the goroutines with the offset and limit.
 func (gd GoroutineDump) Show(offset, limit int) {
 	for i := offset; i < offset+limit && i < len(gd.goroutines); i++ {
-		gd.goroutines[offset+i].Print()
+		gd.goroutines[offset+i].PrintWithColor()
 	}
 }
 

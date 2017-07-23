@@ -280,6 +280,14 @@ Dedupped 2217, kept 46
         syscall: 2
 ```
 
+### Save the Modified Goroutine Dump to a File
+
+After a dump var is modified, it can be saved to a file:
+
+```bash
+a.save("pprof-deduped.log")
+```
+
 ## Properties of a Goroutine Dump Item
 
 Each dump item has 5 properties which can be used in conditionals:

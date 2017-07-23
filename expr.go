@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"os"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 func expr(e string) error {
@@ -38,6 +40,26 @@ func expr(e string) error {
 						return errors.New("delete() expects exactly one argument")
 					}
 					return v.Keep(ex.Args[0].(*ast.BasicLit).Value)
+				case "save":
+					if len(ex.Args) != 1 {
+						return errors.New("save() expects exactly one argument")
+					}
+					fn := strings.Trim(ex.Args[0].(*ast.BasicLit).Value, "\"")
+					if _, err := os.Stat(fn); err == nil {
+						pmpt := fmt.Sprintf("File %s already exists, overwrite it? [Y]/n: ", fn)
+						var confirm string
+						if confirm, err = line.Prompt(pmpt); err != nil {
+							return err
+						}
+						confirm = strings.ToLower(strings.TrimSpace(confirm))
+						if confirm != "y" && confirm != "" {
+							return nil
+						}
+					}
+					if err := v.Save(fn); err != nil {
+						return err
+					}
+					fmt.Printf("Goroutines are saved to file %s.\n", fn)
 				case "search":
 					var err error
 					offset := 0

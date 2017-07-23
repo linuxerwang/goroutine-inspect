@@ -31,6 +31,7 @@ var (
 		"whos":  "Show all varaibles in workspace",
 	}
 	cmds []string
+	line *liner.State
 
 	workspace = map[string]*GoroutineDump{}
 )
@@ -44,7 +45,7 @@ func init() {
 }
 
 func main() {
-	line := createLiner()
+	line = createLiner()
 	defer line.Close()
 	defer saveLiner(line)
 
@@ -167,6 +168,7 @@ func printHelp() {
 	fmt.Println("\tleft, common = <var>.diff(<another-var>)")
 	fmt.Println("\tleft, common, right = <var>.diff(<another-var>)")
 	fmt.Println("\t<var>.keep(\"<condition>\")")
+	fmt.Println("\t<var>.save(\"<output-file-name>\")")
 	fmt.Println("\t<var>.search(\"<condition>\")")
 	fmt.Println("\t<var>.search(\"<condition>\", offset)")
 	fmt.Println("\t<var>.search(\"<condition>\", offset, limit)")
