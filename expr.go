@@ -6,7 +6,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 )
@@ -112,9 +111,10 @@ func expr(e string) error {
 					}
 					v.Show(offset, limit)
 					return nil
+				default:
+					return fmt.Errorf("unknown instrution")
 				}
 			}
-			fmt.Println(reflect.TypeOf(ex.Args[0]))
 		default:
 			return fmt.Errorf("unknown instrution")
 		}
