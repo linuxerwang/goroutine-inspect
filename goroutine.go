@@ -151,7 +151,7 @@ func (g Goroutine) PrintWithColor() {
 		sgr.Print("]")
 	}
 	sgr.Println()
-	sgr.Println(g.trace)
+	fmt.Println(g.trace)
 }
 
 // NewGoroutine creates and returns a new Goroutine.
