@@ -408,6 +408,7 @@ func (gd *GoroutineDump) withCondition(cond string, callback func(int, *Goroutin
 	for i, g := range gd.goroutines {
 		params := map[string]interface{}{
 			"id":       g.id,
+			"dups":     len(g.duplicates),
 			"duration": g.duration,
 			"lines":    g.lines,
 			"state":    g.metas[MetaState],
