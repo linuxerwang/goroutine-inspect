@@ -280,12 +280,19 @@ Dedupped 2217, kept 46
         syscall: 2
 ```
 
+To show goroutines with 5+ duplicates:
+
+```bash
+>> a.search("dups >= 5")
+   ...
+```
+
 ### Save the Modified Goroutine Dump to a File
 
 After a dump var is modified, it can be saved to a file:
 
 ```bash
-a.save("pprof-deduped.log")
+>> a.save("pprof-deduped.log")
 ```
 
 ## Properties of a Goroutine Dump Item
@@ -295,6 +302,7 @@ Each dump item has 5 properties which can be used in conditionals:
 | property | type    | meaning                                             |
 | -------- | ------- | --------------------------------------------------- |
 | id       | integer | The goroutine ID.                                   |
+| dups     | integer | The number of duplicate traces.                     |
 | duration | integer | The waiting duration (in minutes) of a goroutine.   |
 | lines    | integer | The number of lines of the goroutine's stack trace. |
 | state    | string  | The running state of the goroutine.                 |
